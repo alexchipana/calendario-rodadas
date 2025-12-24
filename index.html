@@ -26,10 +26,8 @@ body{
   margin:auto;
   padding:12px;
 }
-h1{
-  text-align:center;
-  margin-bottom:8px;
-}
+h1{text-align:center;margin-bottom:8px;}
+
 .top{
   display:flex;
   gap:8px;
@@ -42,15 +40,15 @@ input,button{
   border:none;
   font-size:15px;
 }
-input{ background:#020617; color:var(--text); }
+input{background:#020617;color:var(--text);}
 button{
   background:var(--accent);
   color:#020617;
   font-weight:600;
   cursor:pointer;
 }
-button.small{ font-size:13px; padding:5px 8px; }
-button.green{ background:var(--primary); color:#020617; }
+button.small{font-size:13px;padding:5px 8px;}
+button.green{background:var(--primary);}
 
 .month{
   text-align:center;
@@ -59,191 +57,4 @@ button.green{ background:var(--primary); color:#020617; }
   font-weight:600;
 }
 
-.weekdays,.calendar{
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-}
-.weekdays div{
-  text-align:center;
-  font-size:12px;
-  color:var(--muted);
-  padding-bottom:4px;
-}
-.day{
-  background:var(--card);
-  margin:3px;
-  border-radius:10px;
-  height:70px;
-  position:relative;
-  display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  cursor:pointer;
-}
-.day.other{ opacity:.2; cursor:default; }
-.day.weekend{ background:#020617; }
-.day.selected{ outline:2px solid var(--accent); }
-.day.majority{ background:#064e3b; }
-
-.day span{
-  position:absolute;
-  top:6px;
-  left:8px;
-  font-size:16px;
-  font-weight:600;
-}
-.icon{
-  position:absolute;
-  bottom:6px;
-  font-size:14px;
-}
-
-.legend{
-  display:flex;
-  gap:14px;
-  justify-content:center;
-  font-size:13px;
-  color:var(--muted);
-  margin:10px 0;
-}
-
-.card{
-  background:var(--card);
-  border-radius:12px;
-  padding:10px;
-  margin-top:14px;
-}
-.card h2{
-  margin:0 0 8px 0;
-  font-size:18px;
-}
-
-.item{
-  background:#020617;
-  border-radius:8px;
-  padding:8px;
-  margin-bottom:8px;
-  font-size:14px;
-}
-.item strong{ color:var(--primary); }
-.small{ font-size:12px; color:var(--muted); }
-</style>
-</head>
-
-<body>
-<div class="container">
-
-<h1>🏍️ Rodadas</h1>
-
-<div class="top">
-  <input id="user" placeholder="Tu nombre">
-  <button onclick="login()">Entrar</button>
-  <button class="small" onclick="prev()">◀</button>
-  <button class="small" onclick="next()">▶</button>
-</div>
-
-<div class="month" id="title"></div>
-
-<div class="weekdays">
-  <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
-</div>
-<div class="calendar" id="calendar"></div>
-
-<div class="legend">
-  <div>◯ disponible</div>
-  <div>● tú</div>
-  <div>★ mayoría</div>
-</div>
-
-<div class="card">
-  <h2>🔥 Días recomendados</h2>
-  <div id="list" class="small"></div>
-</div>
-
-</div>
-
-<script>
-const STORE="rodadas_opt";
-const MAX=20;
-let user=null;
-let d=new Date(),y=d.getFullYear(),m=d.getMonth();
-const HOLIDAYS=["2025-01-01","2025-05-01","2025-08-06"];
-
-const get=()=>JSON.parse(localStorage.getItem(STORE))||{};
-const save=x=>localStorage.setItem(STORE,JSON.stringify(x));
-
-function login(){
-  if(!user.value.trim())return alert("Nombre");
-  user=user.value.trim();
-  render();
-}
-
-function toggle(k){
-  if(!user)return alert("Ingresa tu nombre");
-  let data=get();
-  data[k]=data[k]||{u:[],v:{}};
-  let i=data[k].u.indexOf(user);
-  i>=0?data[k].u.splice(i,1):data[k].u.push(user);
-  save(data);render();
-}
-
-function vote(k){
-  let d=prompt("Destino:");
-  if(!d)return;
-  let data=get();
-  data[k].v[d]=(data[k].v[d]||0)+1;
-  save(data);render();
-}
-
-function render(){
-  calendar.innerHTML="";
-  list.innerHTML="";
-  title.innerText=new Date(y,m).toLocaleString("es",{month:"long",year:"numeric"});
-  let data=get();
-  let users=new Set();
-  Object.values(data).forEach(x=>x.u.forEach(u=>users.add(u)));
-  let maj=Math.ceil(users.size/2);
-  let first=(new Date(y,m,1).getDay()+6)%7;
-  let days=new Date(y,m+1,0).getDate();
-
-  for(let i=0;i<first;i++)
-    calendar.innerHTML+=`<div class="day other"></div>`;
-
-  for(let i=1;i<=days;i++){
-    let key=`${y}-${m+1}-${i}`;
-    let wd=new Date(y,m,i).getDay();
-    let cls="day";
-    if(wd==0||wd==6)cls+=" weekend";
-    let icon="";
-
-    if(data[key]){
-      if(data[key].u.includes(user))cls+=" selected",icon="●";
-      if(data[key].u.length>=maj && maj>0){
-        cls+=" majority"; icon="★";
-        let best=Object.entries(data[key].v).sort((a,b)=>b[1]-a[1])[0];
-        list.innerHTML+=`
-          <div class="item">
-            <strong>${i}/${m+1}</strong> – ${data[key].u.length} disponibles<br>
-            ${best?`📍 ${best[0]} (${best[1]})<br>`:""}
-            <button class="green small" onclick="vote('${key}')">Votar destino</button>
-          </div>`;
-      }
-    }
-
-    calendar.innerHTML+=`
-      <div class="${cls}" onclick="toggle('${key}')">
-        <span>${i}</span>
-        <div class="icon">${icon}</div>
-      </div>`;
-  }
-
-  if(!list.innerHTML) list.innerText="Aún no hay días con mayoría";
-}
-
-function prev(){ m--; if(m<0){m=11;y--;} render(); }
-function next(){ m++; if(m>11){m=0;y++;} render(); }
-
-render();
-</script>
-</body>
-</html>
+.weekdays,.c
