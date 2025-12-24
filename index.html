@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rodadas – Grupo de Motos</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: #fff;
+  margin: 0;
+  padding: 10px;
+}
+h1, h2 {
+  text-align: center;
+}
+.container {
+  max-width: 900px;
+  margin: auto;
+}
+input, button {
+  padding: 8px;
+  font-size: 16px;
+}
+button {
+  background: #e63946;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button:hover {
+  opacity: 0.8;
+}
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.day {
+  border: 1px solid #444;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.day.selected {
+  background: #457b9d;
+}
+.day.majority {
+  background: #2a9d8f;
+  font-weight: bold;
+}
+.info {
+  margin: 15px 0;
+  text-align: center;
+}
+.destino {
+  background: #222;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 5px;
+}
+.small {
+  font-size: 12px;
+  color: #aaa;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>🏍️ Calendario de Rodadas</h1>
+
+  <div class="info">
+    <input id="username" placeholder="Tu nombre / apodo">
+    <button onclick="setUser()">Entrar</button>
+    <p id="userInfo"></p>
+  </div>
+
+  <h2 id="monthYear"></h2>
+  <div class="calendar" id="calendar"></div>
+
+  <h2>🔥 Días con mayoría disponible</h2>
+  <div id="majorityDays"></div>
+</div>
+
+<script>
+const MAX_USERS = 20;
+const dataKey = "rodadasData";
+let currentUser = null;
+
+const today = new Date();
+let year = today.getFullYear();
+let month = today.getMonth();
+
+function setUser() {
+  const name = document.getElementById("username").value.trim();
+  if (!name) return alert("Escribe tu nombre");
+  currentUser = name;
+  document.getElementById("userInfo").innerText = "Usuario: " + currentUser;
+  renderCalendar();
+}
+
+function getData() {
+  return JSON.parse(localStorage.getItem(dataKey)) || {};
+}
+
+function saveData(data) {
+  localStorage.setItem(dataKey, JSON.stringify(data));
+}
+
+function toggleDay(day) {
+  if (!currentUser) return alert("Primero ingresa tu nombre");
+
+  const dateKey = `${year}-${month+1}-${day}`;
+  const data = getData();
+
+  data[dateKey] = data[dateKey] || { users: [], destinos: {} };
+
+  const idx = data[dateKey].users.indexOf(currentUser);
+  if (idx >= 0) {
+    data[dateKey].users.splice(idx, 1);
+  } else {
+    data[dateKey].users.push(currentUser);
+  }
+
+  saveData(data);
+  renderCalendar();
+}
+
+function voteDestino(dateKey) {
+  const destino = prompt("Destino:");
+  if (!destino) return;
+
+  const data = getData();
+  data[dateKey].destinos[destino] =
+    (data[dateKey].destinos[destino] || 0) + 1;
+
+  saveData(data);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById("calendar");
+  calendar.innerHTML = "";
+
+  const data = getData();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  document.getElementById("monthYear").innerText =
+    today.toLocaleString("es", { month: "long" }) + " " + year;
+
+  let totalUsers = new Set();
+  Object.values(data).forEach(d => d.users.forEach(u => totalUsers.add(u)));
+  const majority = Math.ceil(totalUsers.size / 2);
+
+  let majorityHTML = "";
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = `${year}-${month+1}-${day}`;
+    const div = document.createElement("div");
+    div.className = "day";
+    div.innerText = day;
+
+    if (data[dateKey]) {
+      if (data[dateKey].users.includes(currentUser)) {
+        div.classList.add("selected");
+      }
+      if (data[dateKey].users.length >= majority && majority > 0) {
+        div.classList.add("majority");
+
+        let destinos = "";
+        for (let d in data[dateKey].destinos) {
+          destinos += `<div class="small">📍 ${d} (${data[dateKey].destinos[d]})</div>`;
+        }
+
+        majorityHTML += `
+          <div class="destino">
+            <strong>${day}/${month+1}</strong><br>
+            Disponibles: ${data[dateKey].users.join(", ")}<br>
+            <button onclick="voteDestino('${dateKey}')">Votar destino</button>
+            ${destinos}
+          </div>`;
+      }
+    }
+
+    div.onclick = () => toggleDay(day);
+    calendar.appendChild(div);
+  }
+
+  document.getElementById("majorityDays").innerHTML =
+    majorityHTML || "<p class='small'>Aún no hay coincidencias</p>";
+}
+
+renderCalendar();
+</script>
+</body>
+</html>
